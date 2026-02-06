@@ -3,17 +3,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.16+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-高效的M3U8播放列表下载器，支持HLS视频下载、自动合并和加密处理。使用Go语言编写，具有模块化架构和生产级别的代码质量。
-
-## ✨ 主要特性
-
-- 🚀 **高速并发下载**: 智能并发控制，充分利用网络带宽
-- 🔐 **加密支持**: 自动识别和处理AES加密的HLS媒体片段
-- 📦 **自动合并**: 使用FFmpeg实现高效的视频片段合并（无转码）
-- 📊 **实时进度**: 显示下载速度、剩余时间等详细信息
-- 🔄 **自动重试**: 失败片段自动重试，提高可靠性
-- 🎯 **模块化架构**: 清晰的包结构，易于维护和扩展
-- 💪 **生产级别**: 完整的错误处理、日志系统和配置管理
+M3U8播放列表下载器，支持HLS视频下载、自动合并和加密处理。
 
 ## 📋 前置需求
 
@@ -33,11 +23,15 @@ git clone https://github.com/your-username/m3u8-downloader.git
 cd m3u8-downloader
 
 # 构建可执行文件
-go build -o m3u8-downloader cmd/m3u8-downloader/main.go
+go build -o ./build/m3u8-downloader cmd/m3u8-downloader/main.go
+# make build    # Makefile 方式
+# ./build.sh    # 编写好的构建脚本
 
 # 验证安装
-./m3u8-downloader -h
+./build/m3u8-downloader -h
 ```
+
+
 
 ### 基本使用
 
@@ -269,34 +263,12 @@ Log:
 ### Q: 输出文件播放异常
 **A:** 某些特殊的M3U8格式可能需要特殊处理。检查日志输出是否有错误提示。
 
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request！
-
-贡献步骤：
-1. Fork本仓库
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送分支 (`git push origin feature/amazing-feature`)
-5. 开启Pull Request
-
 ## 📄 许可证
 
 本项目采用MIT许可证 - 详见 [LICENSE](LICENSE) 文件
 
-## 🙏 鸣谢
-
-- [FFmpeg](https://ffmpeg.org/) - 视频处理框架
-- Go社区 - 提供优秀的语言和工具链
-
-## 📞 联系方式
-
-如有问题或建议，欢迎提交Issue或联系维护者。
-
 ---
 
 **项目版本**: v2.0  
-**最后更新**: 2024年  
+**最后更新**: 2025年  
 **Go版本**: 1.16+  
-**架构**: 模块化/微服务设计  
-**代码质量**: 生产级别
