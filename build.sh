@@ -43,15 +43,15 @@ go mod download
 echo "🔨 编译中..."
 if [ "$(uname)" == "Darwin" ]; then
     # macOS
-    go build -o m3u8-downloader m3u8-downloader.go
+    go build -o m3u8-downloader cmd/m3u8-downloader/main.go
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     # Linux
-    go build -o m3u8-downloader m3u8-downloader.go
+    go build -o m3u8-downloader cmd/m3u8-downloader/main.go
 elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ] || [ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]; then
     # Windows
-    go build -o m3u8-downloader.exe m3u8-downloader.go
+    go build -o m3u8-downloader.exe cmd/m3u8-downloader/main.go
 else
-    go build -o m3u8-downloader m3u8-downloader.go
+    go build -o m3u8-downloader cmd/m3u8-downloader/main.go
 fi
 
 if [ $? -eq 0 ]; then
@@ -59,17 +59,15 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "📖 使用示例："
     echo ""
-    echo "基本使用:"
-    echo "  ./m3u8-downloader -u 'https://example.com/index.m3u8' -o 'my_video'"
-    echo ""
-    echo "高性能下载（32个线程）:"
-    echo "  ./m3u8-downloader -u 'https://example.com/index.m3u8' -o 'my_video' -n 32"
-    echo ""
-    echo "使用 v2 Host 类型:"
-    echo "  ./m3u8-downloader -u 'https://example.com/index.m3u8' -ht v2"
-    echo ""
-    echo "自定义保存路径:"
-    echo "  ./m3u8-downloader -u 'https://example.com/index.m3u8' -sp '/path/to/save'"
+echo "基本使用:"
+echo "  ./m3u8-downloader 'https://example.com/index.m3u8'"
+echo ""
+echo "指定输出文件名:"
+echo "  ./m3u8-downloader 'https://example.com/index.m3u8' -o 'my_video.mp4'"
+echo ""
+echo "自定义参数:"
+echo "  ./m3u8-downloader 'https://example.com/index.m3u8' -c 20 -t 15 -r 5"
+echo "  （-c: 并发数，-t: 超时秒数，-r: 重试次数）"
     echo ""
     echo "完整参数说明，请执行:"
     echo "  ./m3u8-downloader -h"
