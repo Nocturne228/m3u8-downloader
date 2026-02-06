@@ -10,7 +10,6 @@ import (
 	"crypto/cipher"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -88,30 +87,17 @@ func main() {
 }
 
 func Run() {
-	msgTpl := `
-========================================
-     M3U8 视频下载工具 v2.0
-=========================================
-[功能]  多线程下载直播流 m3u8 视频
-[特性]  
-  - 支持加密 TS 文件自动解密
-  - 使用 FFmpeg 合并生成 MP4 格式
-  - 支持断点续传和失败重试
-  - 显示下载速度和 ETA
-[提醒]  
-  - 下载失败，请使用 -ht=v2 
-  - 下载失败，m3u8 地址可能存在嵌套
-  - 进度条中途下载失败，可重复执行
-  - 需要系统安装 FFmpeg
-========================================
-`
-	fmt.Println(msgTpl)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	now := time.Now()
 
 	// 1、解析命令行参数
 	flag.Parse()
+	
+	// 支持位置参数作为 m3u8 URL
 	m3u8Url := *urlFlag
+	if m3u8Url == "" && len(flag.Args()) > 0 {
+		m3u8Url = flag.Args()[0]
+	}
 	maxGoroutines := *nFlag
 	hostType := *htFlag
 	movieName := *oFlag
@@ -131,8 +117,8 @@ func Run() {
 
 	// 参数验证
 	if !strings.HasPrefix(m3u8Url, "http") || m3u8Url == "" {
-		fmt.Println("[Error] 请输入有效的 m3u8 下载地址")
-		flag.Usage()
+		fmt.Printf("Usage: m3u8-downloader <url> [options]\n")
+		flag.PrintDefaults()
 		return
 	}
 
@@ -149,7 +135,7 @@ func Run() {
 	var download_dir string
 	pwd, err := os.Getwd()
 	if err != nil {
-		logger.Printf("[Error] 获取当前目录失败: %v\n", err)
+		fmt.Printf("[Error] 获取当前目录失败: %v\n", err)
 		return
 	}
 
@@ -162,10 +148,9 @@ func Run() {
 	if isExist, _ := pathExists(download_dir); !isExist {
 		err := os.MkdirAll(download_dir, os.ModePerm)
 		if err != nil {
-			logger.Printf("[Error] 创建下载目录失败: %v\n", err)
+			fmt.Printf("[Error] 创建下载目录失败: %v\n", err)
 			return
 		}
-		fmt.Printf("[Info] 创建临时目录: %s\n", download_dir)
 	}
 
 	// 2、检查ffmpeg是否可用
@@ -182,11 +167,8 @@ func Run() {
 	m3u8Body := getM3u8Body(m3u8Url)
 	//m3u8Body := getFromFile()
 	ts_key := getM3u8Key(m3u8Host, m3u8Body)
-	if ts_key != "" {
-		fmt.Printf("待解密 ts 文件 key : %s \n", ts_key)
-	}
 	ts_list := getTsList(m3u8Host, m3u8Body)
-	fmt.Printf("待下载 ts 文件数量: %d 个\n", len(ts_list))
+	fmt.Printf("[Preparing] 准备下载 %d 个 TS 文件...\n", len(ts_list))
 
 	// 4、初始化下载统计
 	stats.TotalCount = int64(len(ts_list))
@@ -202,61 +184,52 @@ func Run() {
 	}
 
 	// 6、合并ts切割文件成mp4文件
-	fmt.Println("\n[Info] 开始使用 FFmpeg 合并视频...")
+	fmt.Println("[Merging] 合并视频中...")
 	mv, err := mergeWithFFmpeg(download_dir, movieName)
 	if err != nil {
-		fmt.Printf("\n[Failed] 合并视频失败: %v\n", err)
+		fmt.Printf("[Failed] 合并视频失败: %v\n", err)
 		return
 	}
 
 	if autoClearFlag {
 		//自动清除ts文件目录
 		os.RemoveAll(download_dir)
-		fmt.Println("[Info] 已清除临时 ts 文件")
 	}
 
 	//7、输出下载视频信息
-	fmt.Printf("\n[Success] 下载保存路径：%s\n", mv)
-	fmt.Printf("共耗时: %6.2fs\n", time.Since(now).Seconds())
+	fmt.Printf("\n[Success] 视频已保存：%s\n", mv)
+	fmt.Printf("下载耗时：%.1fs\n", time.Since(now).Seconds())
 }
 
 // 获取m3u8地址的host
-// @modify: 2026-02-06 改进错误处理
 func getHost(Url, ht string) (host string) {
 	u, err := url.Parse(Url)
 	if err != nil {
-		logger.Printf("[warn] 解析 URL 失败: %v，使用版本 v2\n", err)
 		return ""
 	}
 	switch ht {
 	case "v1":
 		host = u.Scheme + "://" + u.Host + filepath.Dir(u.EscapedPath())
-	case "v2":
-		host = u.Scheme + "://" + u.Host
 	default:
-		logger.Printf("[warn] 未知的 hostType: %s，使用版本 v2\n", ht)
 		host = u.Scheme + "://" + u.Host
 	}
 	return
 }
 
 // 获取m3u8地址的内容体
-// @modify: 2026-02-06 改进错误处理和重试机制
 func getM3u8Body(Url string) string {
 	maxRetries := 3
 	for i := 1; i <= maxRetries; i++ {
 		r, err := grequests.Get(Url, ro)
 		if err != nil {
 			if i < maxRetries {
-				logger.Printf("[warn] 第 %d 次获取 m3u8 文件失败，2秒后重试: %v\n", i, err)
 				time.Sleep(2 * time.Second)
 				continue
 			}
-			checkErr(fmt.Errorf("获取 m3u8 文件失败（已重试 %d 次）: %v", maxRetries, err))
+			checkErr(fmt.Errorf("获取 m3u8 文件失败: %v", err))
 		}
 		if !r.Ok {
 			if i < maxRetries {
-				logger.Printf("[warn] 第 %d 次获取 m3u8 文件返回状态 %d，2秒后重试\n", i, r.StatusCode)
 				time.Sleep(2 * time.Second)
 				continue
 			}
@@ -268,7 +241,6 @@ func getM3u8Body(Url string) string {
 }
 
 // 获取m3u8加密的密钥
-// @modify: 2026-02-06 改进日志输出，使用 logger 替代 fmt.Println
 func getM3u8Key(host, html string) (key string) {
 	lines := strings.Split(html, "\n")
 	key = ""
@@ -277,7 +249,6 @@ func getM3u8Key(host, html string) (key string) {
 			if !strings.Contains(line, "URI") {
 				continue
 			}
-			logger.Println("[debug] line_key:", line)
 			uri_pos := strings.Index(line, "URI")
 			quotation_mark_pos := strings.LastIndex(line, "\"")
 			if uri_pos == -1 || quotation_mark_pos == -1 {
@@ -289,7 +260,6 @@ func getM3u8Key(host, html string) (key string) {
 			}
 			res, err := grequests.Get(key_url, ro)
 			if err != nil {
-				logger.Println("[warn] 获取密钥失败:", err)
 				continue
 			}
 			if res.StatusCode == 200 {
@@ -298,7 +268,6 @@ func getM3u8Key(host, html string) (key string) {
 			}
 		}
 	}
-	logger.Println("[debug] m3u8Host:", host, "m3u8Key:", key)
 	return
 }
 
@@ -331,7 +300,7 @@ func getTsList(host, body string) (tsList []TsInfo) {
 }
 
 func getFromFile() string {
-	data, _ := ioutil.ReadFile("./ts.txt")
+	data, _ := os.ReadFile("./ts.txt")
 	return string(data)
 }
 
@@ -398,7 +367,7 @@ func downloadTsFile(ts TsInfo, download_dir, key string, retries int) {
 			break
 		}
 	}
-	ioutil.WriteFile(curr_path_file, origData, 0666)
+	os.WriteFile(curr_path_file, origData, 0666)
 	atomic.AddInt64(&stats.DownloadCount, 1)
 }
 
@@ -450,7 +419,7 @@ func updateProgressBar(total int) {
 }
 
 func checkTsDownDir(dir string, expectedCount int) bool {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return false
 	}
@@ -479,7 +448,7 @@ func mergeTs(downloadDir string) string {
 		if f.IsDir() || filepath.Ext(path) != ".ts" {
 			return nil
 		}
-		bytes, _ := ioutil.ReadFile(path)
+		bytes, _ := os.ReadFile(path)
 		_, err = writer.Write(bytes)
 		return err
 	})
@@ -500,7 +469,7 @@ func checkFFmpeg() bool {
 // @modify: 2026-02-06 新增函数，使用 FFmpeg 进行合并
 func mergeWithFFmpeg(tsDir, movieName string) (string, error) {
 	// 获取所有 ts 文件并按名称排序
-	files, err := ioutil.ReadDir(tsDir)
+	files, err := os.ReadDir(tsDir)
 	if err != nil {
 		return "", fmt.Errorf("读取目录失败: %v", err)
 	}
@@ -527,7 +496,7 @@ func mergeWithFFmpeg(tsDir, movieName string) (string, error) {
 		concatContent += fmt.Sprintf("file '%s'\n", filePath)
 	}
 
-	err = ioutil.WriteFile(concatFile, []byte(concatContent), 0644)
+	err = os.WriteFile(concatFile, []byte(concatContent), 0644)
 	if err != nil {
 		return "", fmt.Errorf("创建 concat 文件失败: %v", err)
 	}
