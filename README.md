@@ -109,10 +109,6 @@ go test ./...
 go build ./...
 ```
 
-## 变更与发布
-
-请参阅 `docs/RELEASE_NOTES.md`。
-
 ## 许可证
 
 MIT — 详见 LICENSE

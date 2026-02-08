@@ -81,6 +81,3 @@ go vet ./...
 - 开发指南：`docs/DEVELOPMENT.md`
 - 测试指南：`docs/TEST.md`
 - 发布说明：`docs/RELEASE_NOTES.md`
-
-（本文件仅作速查）
-│   ├── http/                   # HTTP客户端

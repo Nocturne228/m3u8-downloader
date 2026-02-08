@@ -11,6 +11,7 @@ import (
 	httpClient "m3u8-downloader/internal/http"
 	"m3u8-downloader/internal/logger"
 	"m3u8-downloader/internal/m3u8"
+	"m3u8-downloader/internal/theme"
 	"m3u8-downloader/internal/util"
 )
 
@@ -200,15 +201,8 @@ func (dm *DownloadManager) displayProgress() {
 	remainCount := float64(total) - float64(downloadCount)
 	eta := remainCount / speed
 
-	// progress bar rendering
-	// Catppuccin Mocha inspired colors
-	const (
-		reset    = "\033[0m"
-		textCol  = "\033[38;2;205;214;244m"
-		surface1 = "\033[38;2;69;71;90m"
-		green    = "\033[38;2;166;227;161m"
-		lavender = "\033[38;2;180;190;254m"
-	)
+	// progress bar rendering — use shared theme colors
+	// colors are provided by internal/theme
 
 	progressWidth := 36
 	pos := int(progress * float32(progressWidth))
@@ -231,23 +225,23 @@ func (dm *DownloadManager) displayProgress() {
 	sp := []string{"⣽", "⣾", "⣻", "⣷", "⣯", "⣟"}
 	spinner := sp[int(time.Now().UnixNano()/1e8)%len(sp)]
 
-	// render bar with colors
+	// render bar with colors using theme
 	filled := ""
 	if pos > 0 {
-		filled = green + repeatStr("━", pos) + reset
+		filled = theme.Green + repeatStr("━", pos) + theme.Reset
 	}
-	empty := surface1 + repeatStr(" ", progressWidth-pos) + reset
+	empty := theme.Surface1 + repeatStr(" ", progressWidth-pos) + theme.Reset
 
 	// assemble and print
 	fmt.Printf("\r%s %s%s %s%d/%d %6.2f%% %s%.2f files/s ETA:%s %s",
-		lavender+"Vid Kbps"+reset,
+		theme.Lavender+"Vid Kbps"+theme.Reset,
 		filled,
 		empty,
-		textCol,
+		theme.Text,
 		downloadCount,
 		total,
 		progress*100,
-		textCol,
+		theme.Text,
 		speed,
 		etaStr,
 		spinner,
