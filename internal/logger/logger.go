@@ -3,7 +3,27 @@ package logger
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
+)
+
+/*
+Catppuccin Mocha ANSI colors
+https://catppuccin.com/palette
+*/
+const (
+	reset = "\033[0m"
+
+	text      = "\033[38;2;205;214;244m"
+	subtext1  = "\033[38;2;186;194;222m"
+	surface1  = "\033[38;2;69;71;90m"
+
+	sky       = "\033[38;2;137;220;235m"
+	green     = "\033[38;2;166;227;161m"
+	yellow    = "\033[38;2;249;226;175m"
+	red       = "\033[38;2;243;139;168m"
+	maroon    = "\033[38;2;235;160;172m"
+	lavender  = "\033[38;2;180;190;254m"
 )
 
 // Level 日志级别
@@ -34,6 +54,24 @@ func (l Level) String() string {
 	}
 }
 
+// levelColor returns Catppuccin color for level
+func levelColor(l Level) string {
+	switch l {
+	case DebugLevel:
+		return sky
+	case InfoLevel:
+		return green
+	case WarnLevel:
+		return yellow
+	case ErrorLevel:
+		return red
+	case FatalLevel:
+		return maroon
+	default:
+		return text
+	}
+}
+
 // Logger 日志接口
 type Logger interface {
 	Debug(msg string, args ...interface{})
@@ -41,6 +79,7 @@ type Logger interface {
 	Warn(msg string, args ...interface{})
 	Error(msg string, args ...interface{})
 	Fatal(msg string, args ...interface{})
+
 	DebugWithFields(msg string, fields map[string]interface{})
 	InfoWithFields(msg string, fields map[string]interface{})
 	ErrorWithFields(msg string, fields map[string]interface{})
@@ -53,9 +92,8 @@ type ConsoleLogger struct {
 
 // New 创建新的文本日志记录器
 func New(levelStr string) Logger {
-	level := parseLevel(levelStr)
 	return &ConsoleLogger{
-		level: level,
+		level: parseLevel(levelStr),
 	}
 }
 
@@ -122,24 +160,80 @@ func (l *ConsoleLogger) ErrorWithFields(msg string, fields map[string]interface{
 }
 
 func (l *ConsoleLogger) log(level Level, msg string, args ...interface{}) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	prefix := fmt.Sprintf("[%s] [%s]", timestamp, level)
+	ts := time.Now().Format("2006-01-02 15:04:05")
 
 	if len(args) > 0 {
 		msg = fmt.Sprintf(msg, args...)
 	}
 
-	fmt.Printf("%s %s\n", prefix, msg)
+	prefix := fmt.Sprintf(
+		"%s[%s]%s %s[%s]%s",
+		surface1, ts, reset,
+		levelColor(level), level, reset,
+	)
+
+	printWithProgressRedraw(func() {
+		fmt.Printf("%s %s%s%s\n", prefix, text, msg, reset)
+	})
 }
 
 func (l *ConsoleLogger) logWithFields(level Level, msg string, fields map[string]interface{}) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	prefix := fmt.Sprintf("[%s] [%s]", timestamp, level)
+	ts := time.Now().Format("2006-01-02 15:04:05")
 
 	fieldsStr := ""
 	for k, v := range fields {
-		fieldsStr += fmt.Sprintf(" %s=%v", k, v)
+		fieldsStr += fmt.Sprintf(
+			" %s%s%s=%s%v%s",
+			lavender, k, reset,
+			subtext1, v, reset,
+		)
 	}
 
-	fmt.Printf("%s %s%s\n", prefix, msg, fieldsStr)
+	prefix := fmt.Sprintf(
+		"%s[%s]%s %s[%s]%s",
+		surface1, ts, reset,
+		levelColor(level), level, reset,
+	)
+
+	printWithProgressRedraw(func() {
+		fmt.Printf("%s %s%s%s\n", prefix, text, msg, fieldsStr)
+	})
 }
+
+/* ---------- progress redraw support ---------- */
+
+var (
+	progressRedraw   func()
+	progressRedrawMu sync.Mutex
+)
+
+func printWithProgressRedraw(printFn func()) {
+	progressRedrawMu.Lock()
+	hasRedraw := progressRedraw != nil
+	progressRedrawMu.Unlock()
+
+	if hasRedraw {
+		fmt.Print("\r\033[K")
+	}
+
+	printFn()
+
+	if hasRedraw {
+		progressRedrawMu.Lock()
+		cb := progressRedraw
+		progressRedrawMu.Unlock()
+		if cb != nil {
+			cb()
+		}
+	}
+}
+
+// RegisterProgressRedraw registers a callback that will be invoked after each
+// log line so a long-running progress line can be redrawn without being
+// interrupted by log output.
+func RegisterProgressRedraw(cb func()) {
+	progressRedrawMu.Lock()
+	defer progressRedrawMu.Unlock()
+	progressRedraw = cb
+}
+

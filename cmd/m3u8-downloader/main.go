@@ -31,8 +31,30 @@ const Version = "2.0.0"
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// 解析参数
-	flag.Parse()
+	// Parse flags but allow flags after the positional URL.
+	// The stdlib `flag` stops at the first non-flag arg, so we pre-scan
+	// os.Args to extract the first positional URL and build a flags slice
+	// that contains only flag tokens (and their values) for parsing.
+	var positionalURL string
+	argsForFlags := make([]string, 0)
+	for i := 1; i < len(os.Args); i++ {
+		a := os.Args[i]
+		if strings.HasPrefix(a, "-") {
+			argsForFlags = append(argsForFlags, a)
+			// if next token exists and is not a flag, treat it as the value
+			if i+1 < len(os.Args) && !strings.HasPrefix(os.Args[i+1], "-") {
+				argsForFlags = append(argsForFlags, os.Args[i+1])
+				i++
+			}
+		} else {
+			if positionalURL == "" {
+				positionalURL = a
+			}
+		}
+	}
+
+	// Parse the reconstructed flag args
+	flag.CommandLine.Parse(argsForFlags)
 
 	// 显示帮助或版本
 	if *helpFlag {
@@ -45,10 +67,14 @@ func main() {
 		return
 	}
 
-	// 获取 M3U8 URL
+	// 获取 M3U8 URL (支持位置参数或 -u)
 	m3u8URL := *urlFlag
-	if m3u8URL == "" && len(flag.Args()) > 0 {
-		m3u8URL = flag.Args()[0]
+	if m3u8URL == "" {
+		if positionalURL != "" {
+			m3u8URL = positionalURL
+		} else if len(flag.Args()) > 0 {
+			m3u8URL = flag.Args()[0]
+		}
 	}
 
 	// 验证 URL

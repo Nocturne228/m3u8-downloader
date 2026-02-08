@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -34,15 +35,21 @@ type DownloadManager struct {
 }
 
 // NewDownloadManager 创建新的下载管理器
-func NewDownloadManager(httpClient httpClient.Client, maxGoroutines, maxRetries int, logger logger.Logger) *DownloadManager {
-	return &DownloadManager{
+func NewDownloadManager(httpClient httpClient.Client, maxGoroutines, maxRetries int, lg logger.Logger) *DownloadManager {
+	dm := &DownloadManager{
 		httpClient:     httpClient,
 		maxGoroutines:  maxGoroutines,
 		maxRetries:     maxRetries,
 		tsNameTemplate: "%05d.ts",
-		logger:         logger,
+		logger:         lg,
 		stats:          &DownloadStats{},
 	}
+
+	// Register progress redraw so log messages won't leave the progress broken
+	// on the terminal. The logger package will call this after printing logs.
+	logger.RegisterProgressRedraw(func() { dm.displayProgress() })
+
+	return dm
 }
 
 // Download 下载所有 TS 段
@@ -176,25 +183,39 @@ func (dm *DownloadManager) displayProgress() {
 	remainCount := float64(total) - float64(downloadCount)
 	eta := remainCount / speed
 
-	// 计算进度条
-	progressWidth := 20
+	// progress bar rendering
+	progressWidth := 30
 	pos := int(progress * float32(progressWidth))
 
-	// 格式化 ETA
-	etaStr := fmt.Sprintf("%.0fs", eta)
-	if eta > 60 {
-		etaStr = fmt.Sprintf("%.1fm", eta/60)
+	// format ETA into hh:mm:ss or mm:ss
+	etaStr := "--:--"
+	if !math.IsInf(eta, 0) && !math.IsNaN(eta) {
+		d := time.Duration(eta) * time.Second
+		h := int(d.Hours())
+		m := int(d.Minutes()) % 60
+		s := int(d.Seconds()) % 60
+		if h > 0 {
+			etaStr = fmt.Sprintf("%02dh%02dm%02ds", h, m, s)
+		} else {
+			etaStr = fmt.Sprintf("%02dm%02ds", m, s)
+		}
 	}
 
-	// 显示进度条
-	fmt.Printf("\r[Downloading] %s%s %6.2f%% (%d/%d) %.1f files/s ETA: %s",
-		repeatStr("■", pos),
-		repeatStr(" ", progressWidth-pos),
-		progress*100,
+	// spinner
+	sp := []string{"⣽", "⣾", "⣻", "⣷", "⣯", "⣟"}
+	spinner := sp[int(time.Now().UnixNano()/1e8)%len(sp)]
+
+	// render bar
+	bar := repeatStr("━", pos) + repeatStr(" ", progressWidth-pos)
+
+	fmt.Printf("\rVid Kbps %s %d/%d %6.2f%% %.2f files/s ETA: %s %s",
+		bar,
 		downloadCount,
 		total,
+		progress*100,
 		speed,
 		etaStr,
+		spinner,
 	)
 }
 
