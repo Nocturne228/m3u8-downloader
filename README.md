@@ -41,234 +41,78 @@ go build -o ./build/m3u8-downloader cmd/m3u8-downloader/main.go
 ./m3u8-downloader "https://example.com/playlist.m3u8"
 ```
 
-完整的参数用法：
+# m3u8-downloader
+
+M3U8 HLS 下载器 — 并发下载、自动解密与 FFmpeg 合并，带彩色终端输出与可复用主题。
+
+快速亮点
+- 支持并发下载与重试策略
+- 自动处理 AES-128 加密的 TS 段
+- 彩色终端日志（Catppuccin Mocha 主题）
+- 支持 `m3u8#fragment` 格式自动提取保存名
+
+## 快速开始
+
+构建并运行：
 
 ```bash
-./m3u8-downloader [选项] <M3U8_URL>
-
-选项:
-  -u string           M3U8播放列表URL（可选，支持位置参数）
-  -o string           输出文件路径（默认: 同URL名称）
-  -t int              HTTP请求超时秒数（默认: 10）
-  -c int              并发下载数（默认: 10）
-  -r int              失败重试次数（默认: 3）
-  -h, -help           显示帮助信息
-  -v, -version        显示版本信息
-```
-
-### 使用示例
-
-```bash
-# 最简单的方式
-./m3u8-downloader "https://example.com/video.m3u8"
-
-# 指定输出文件名
-./m3u8-downloader "https://example.com/video.m3u8" -o my_video.mp4
-
-# 设置自定义参数
-./m3u8-downloader "https://example.com/video.m3u8" \
-  -o output.mp4 \
-  -c 20 \              # 20个并发
-  -t 15 \              # 超时15秒
-  -r 5                 # 重试5次
-```
-
-## 📁 项目结构
-
-```
-m3u8-downloader/
-├── cmd/                      # 应用程序入口点
-│   └── m3u8-downloader/
-│       └── main.go          # CLI主程序
-├── internal/                # 内部包（不对外暴露）
-│   ├── config/             # ⚙️  配置管理
-│   ├── logger/             # 📝 日志系统
-│   ├── errors/             # ⚠️  错误处理
-│   ├── http/               # 🌐 HTTP客户端
-│   ├── m3u8/               # 📋 M3U8解析
-│   ├── core/               # 🔧 核心下载引擎
-│   ├── video/              # 🎬 视频处理
-│   └── util/               # 🛠️  工具函数
-├── test/                    # 📊 测试文件
-├── docs/                    # 📚 文档
-│   ├── TEST.md             # 测试指南
-│   ├── DEVELOPMENT.md      # 开发指南
-│   └── REFACTORING_REPORT_V2.0.md
-├── go.mod                  # 模块定义
-├── go.sum                  # 依赖校验和
-├── README.md              # 本文件
-└── build-release.sh       # 发布构建脚本
-```
-
-## 🏗️ 架构设计
-
-### 模块职责
-
-| 模块 | 职责 | 关键功能 |
-|------|------|--------|
-| **config** | 配置管理 | 默认配置、参数验证 |
-| **logger** | 日志系统 | 结构化日志、多级别输出 |
-| **errors** | 错误处理 | 统一错误定义、错误链 |
-| **http** | HTTP客户端 | 请求控制、指数退避重试 |
-| **m3u8** | 播放列表处理 | M3U8解析、密钥提取 |
-| **core** | 核心下载 | 任务管理、并发控制 |
-| **video** | 视频处理 | FFmpeg合并、格式转换 |
-| **util** | 工具函数 | 文件I/O、加密解密 |
-
-### 工作流程
-
-```
-┌─────────────────────────────────────────────┐
-│ 1. 解析命令行参数                            │
-│    ↓                                         │
-│ 2. 读取M3U8播放列表                         │
-│    ↓                                         │
-│ 3. 解析媒体清单（提取片段、密钥等）        │
-│    ↓                                         │
-│ 4. 并发下载所有TS片段                       │
-│    ├─ 自动检测加密                          │
-│    ├─ 失败自动重试                          │
-│    └─ 实时显示进度                          │
-│    ↓                                         │
-│ 5. 使用FFmpeg合并TS片段为MP4                │
-│    ↓                                         │
-│ 6. 验证输出文件和清理临时文件               │
-└─────────────────────────────────────────────┘
-```
-
-## 📝 日志输出
-
-程序会输出关键操作信息：
-
-```
-✓ 成功解析M3U8: 1080个片段
-⟳ 正在下载... [████████░░] 80% | 速度: 5.2 MB/s | 剩余: 45s
-✓ 下载完毕: 850 MB
-⟳ 正在合并...
-✓ 视频合并完成: output.mp4 (850 MB)
-```
-
-## 🧪 测试
-
-### 运行单元测试
-
-```bash
-# 运行所有测试
-go test ./...
-
-# 运行特定包的测试
-go test ./internal/logger -v
-
-# 显示覆盖率
-go test -cover ./...
-
-# 生成HTML覆盖率报告
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-```
-
-### 测试包含内容
-
-- ✅ 配置验证测试
-- ✅ 错误处理测试
-- ✅ 日志输出测试
-- ✅ HTTP客户端测试
-
-详细信息见 [TEST.md](docs/TEST.md)
-
-## 🔨 开发
-
-### 构建
-
-```bash
-# 标准构建
 go build -o m3u8-downloader cmd/m3u8-downloader/main.go
-
-# 带调试符号的构建
-go build -gcflags="all=-N -l" -o m3u8-downloader cmd/m3u8-downloader/main.go
-
-# 交叉编译（示例：为Linux构建）
-GOOS=linux GOARCH=amd64 go build -o m3u8-downloader cmd/m3u8-downloader/main.go
+./m3u8-downloader "https://example.com/video.m3u8" -o my_video
 ```
 
-### 代码检查
+支持把 `-o` 放在 URL 之前或之后；也支持在 URL 后追加 `#name` 片段自动作为输出名：
 
 ```bash
-# 格式化代码
-go fmt ./...
-
-# 代码静态检查
-go vet ./...
-
-# 竞态条件检查（仅限有并发的代码）
-go test -race ./...
+./m3u8-downloader "https://sut.com/.../video.m3u8#FC2-PPV-4048938"
 ```
 
-### 发布构建
+## CLI 参数（主要）
+
+- `-u` string : 指定 M3U8 URL（可选，通常使用位置参数）
+- `-o` string : 输出文件名（不含后缀），若不指定会从 URL 或 `#fragment` 解析
+- `-n` int    : 并发下載线程数（默认 24）
+- `-ht` string: 主机类型 (v1/v2)
+- `-sp` string: 保存目录（默认当前目录）
+- `-s`        : 允许不安全 HTTPS（跳过证书验证）
+- `-c` string : 自定义 Cookie
+- `-r` bool   : 下载后自动清理 TS（默认 true）
+- `-v`        : 显示版本
+
+示例：
 
 ```bash
-# 使用发布脚本
-./build-release.sh
-
-# 或手动：
-go build -ldflags="-s -w" -o releases/m3u8-downloader cmd/m3u8-downloader/main.go
+./m3u8-downloader "https://example.com/video.m3u8" -n 32 -o my_video -sp ~/Movies
 ```
 
-## 📚 详细文档
+## 项目结构（简要）
 
-- **[测试指南](docs/TEST.md)** - 单元测试、集成测试、E2E测试详解
-- **[开发指南](docs/DEVELOPMENT.md)** - 开发流程、贡献指南、扩展方向
-- **[重构报告](docs/REFACTORING_REPORT_V2.0.md)** - v2.0架构设计和优化细节
-
-## ⚙️ 配置说明
-
-配置通过命令行参数传递（目前支持）。计划扩展支持YAML/JSON配置文件。
-
-### 关键配置项
-
-```go
-HTTP:
-  Timeout: 10s          # HTTP请求超时
-  MaxRetries: 3         # 最大重试次数
-  RetryDelay: 1s        # 重试延迟
-
-Download:
-  MaxConcurrent: 10     # 并发下载数
-  ChunkSize: 1MB        # 每个片段大小
-  OutDir: .             # 输出目录
-
-FFmpeg:
-  Path: ffmpeg          # FFmpeg可执行文件路径
-  Timeout: 300s         # FFmpeg合并超时
-
-Log:
-  Level: INFO           # info/debug/warn/error
-  Format: console       # 输出格式
+```
+cmd/              # CLI入口
+internal/         # 内部包（config, logger, http, m3u8, core, video, util, theme）
+docs/             # 文档
+build/            # 构建产物
 ```
 
-## 🐛 常见问题
+## 主题与颜色
 
-### Q: 下载速度慢
-**A:** 尝试增加并发数 `-c 20` 或更大，同时检查网络连接。
+配色放在 `internal/theme`，供 `logger`、`core`、`video` 等模块复用以保持一致的终端风格。
 
-### Q: 找不到ffmpeg
-**A:** 确保FFmpeg已安装并在PATH中。验证：`ffmpeg -version`
+## 文档与开发
 
-### Q: 下载中断
-**A:** 程序有自动重试机制，可用 `-r 5` 增加重试次数。
+- 详细使用与开发说明请参阅 `docs/DEVELOPMENT.md` 与 `docs/TEST.md`。
+- `docs/QUICK_REFERENCE.md` 已简化为快速引用，请以 `README.md` 为主说明。
 
-### Q: 内存占用过高
-**A:** 较大文件的下载可能占用内存。可通过减少 `-c` 参数降低并发数。
+## 测试与构建
 
-### Q: 输出文件播放异常
-**A:** 某些特殊的M3U8格式可能需要特殊处理。检查日志输出是否有错误提示。
+```bash
+go test ./...
+go build ./...
+```
 
-## 📄 许可证
+## 变更与发布
 
-本项目采用MIT许可证 - 详见 [LICENSE](LICENSE) 文件
+请参阅 `docs/RELEASE_NOTES.md`。
 
----
+## 许可证
 
-**项目版本**: v2.0  
-**最后更新**: 2025年  
-**Go版本**: 1.16+  
+MIT — 详见 LICENSE

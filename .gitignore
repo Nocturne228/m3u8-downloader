@@ -1,8 +1,9 @@
 .idea
 .DS_Store
 
-ts.txt
 movie/
 movie.mp4
+build/
 Releases/
 vendor/
+m3u8-downloader
