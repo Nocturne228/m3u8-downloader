@@ -10,6 +10,7 @@ import (
 
 	"m3u8-downloader/internal/errors"
 	"m3u8-downloader/internal/logger"
+	"m3u8-downloader/internal/theme"
 	"m3u8-downloader/internal/util"
 )
 
@@ -80,7 +81,7 @@ func (m *FFmpegMerger) Merge(segmentDir, outputPath string) (string, error) {
 	}
 	defer os.Remove(concatFile)
 
-	m.logger.Info("开始合并 %d 个 TS 文件到 %s", len(tsFiles), outputPath)
+	m.logger.Info("开始合并 %d 个 TS 文件到 %s", len(tsFiles), theme.Lavender+outputPath+theme.Reset)
 
 	// 执行 FFmpeg 合并
 	cmd := exec.Command(
@@ -111,7 +112,7 @@ func (m *FFmpegMerger) Merge(segmentDir, outputPath string) (string, error) {
 		return "", err
 	}
 
-	m.logger.Info("成功合并视频: %s", outputPath)
+	m.logger.Info("成功合并视频: %s", theme.Lavender+outputPath+theme.Reset)
 	return outputPath, nil
 }
 

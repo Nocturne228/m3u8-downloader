@@ -32,6 +32,9 @@ type DownloadManager struct {
 	tsNameTemplate string
 	logger         logger.Logger
 	stats          *DownloadStats
+	// progressActive indicates whether the progress line should be redrawn.
+	// 1 = active, 0 = stopped.
+	progressActive int32
 }
 
 // NewDownloadManager 创建新的下载管理器
@@ -48,6 +51,9 @@ func NewDownloadManager(httpClient httpClient.Client, maxGoroutines, maxRetries 
 	// Register progress redraw so log messages won't leave the progress broken
 	// on the terminal. The logger package will call this after printing logs.
 	logger.RegisterProgressRedraw(func() { dm.displayProgress() })
+
+	// enable progress redraw
+	atomic.StoreInt32(&dm.progressActive, 1)
 
 	return dm
 }
@@ -89,7 +95,14 @@ func (dm *DownloadManager) Download(manifest *m3u8.Manifest, downloadDir string)
 	}
 
 	wg.Wait()
-	fmt.Println() // 打印换行
+	// stop progress redraw and clear the line so subsequent operations (merge)
+	// won't have the progress bar print over log output.
+	atomic.StoreInt32(&dm.progressActive, 0)
+	// unregister redraw callback
+	logger.RegisterProgressRedraw(nil)
+	// clear the progress line
+	fmt.Print("\r\033[K")
+	fmt.Println()
 
 	dm.logger.Info("下载完成: 成功 %d, 跳过 %d, 失败 %d",
 		atomic.LoadInt64(&dm.stats.DownloadCount),
@@ -169,6 +182,10 @@ func (dm *DownloadManager) downloadSingleSegment(index int, segment *m3u8.TsSegm
 }
 
 func (dm *DownloadManager) displayProgress() {
+	// if progress redraw was turned off, don't print anything
+	if atomic.LoadInt32(&dm.progressActive) == 0 {
+		return
+	}
 	downloadCount := atomic.LoadInt64(&dm.stats.DownloadCount)
 	total := dm.stats.TotalCount
 
@@ -184,7 +201,16 @@ func (dm *DownloadManager) displayProgress() {
 	eta := remainCount / speed
 
 	// progress bar rendering
-	progressWidth := 30
+	// Catppuccin Mocha inspired colors
+	const (
+		reset    = "\033[0m"
+		textCol  = "\033[38;2;205;214;244m"
+		surface1 = "\033[38;2;69;71;90m"
+		green    = "\033[38;2;166;227;161m"
+		lavender = "\033[38;2;180;190;254m"
+	)
+
+	progressWidth := 36
 	pos := int(progress * float32(progressWidth))
 
 	// format ETA into hh:mm:ss or mm:ss
@@ -205,14 +231,23 @@ func (dm *DownloadManager) displayProgress() {
 	sp := []string{"⣽", "⣾", "⣻", "⣷", "⣯", "⣟"}
 	spinner := sp[int(time.Now().UnixNano()/1e8)%len(sp)]
 
-	// render bar
-	bar := repeatStr("━", pos) + repeatStr(" ", progressWidth-pos)
+	// render bar with colors
+	filled := ""
+	if pos > 0 {
+		filled = green + repeatStr("━", pos) + reset
+	}
+	empty := surface1 + repeatStr(" ", progressWidth-pos) + reset
 
-	fmt.Printf("\rVid Kbps %s %d/%d %6.2f%% %.2f files/s ETA: %s %s",
-		bar,
+	// assemble and print
+	fmt.Printf("\r%s %s%s %s%d/%d %6.2f%% %s%.2f files/s ETA:%s %s",
+		lavender+"Vid Kbps"+reset,
+		filled,
+		empty,
+		textCol,
 		downloadCount,
 		total,
 		progress*100,
+		textCol,
 		speed,
 		etaStr,
 		spinner,

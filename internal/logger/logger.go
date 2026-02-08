@@ -5,26 +5,11 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"m3u8-downloader/internal/theme"
 )
 
-/*
-Catppuccin Mocha ANSI colors
-https://catppuccin.com/palette
-*/
-const (
-	reset = "\033[0m"
-
-	text      = "\033[38;2;205;214;244m"
-	subtext1  = "\033[38;2;186;194;222m"
-	surface1  = "\033[38;2;69;71;90m"
-
-	sky       = "\033[38;2;137;220;235m"
-	green     = "\033[38;2;166;227;161m"
-	yellow    = "\033[38;2;249;226;175m"
-	red       = "\033[38;2;243;139;168m"
-	maroon    = "\033[38;2;235;160;172m"
-	lavender  = "\033[38;2;180;190;254m"
-)
+// color values provided by internal/theme
 
 // Level 日志级别
 type Level int
@@ -58,17 +43,17 @@ func (l Level) String() string {
 func levelColor(l Level) string {
 	switch l {
 	case DebugLevel:
-		return sky
+		return theme.Sky
 	case InfoLevel:
-		return green
+		return theme.Green
 	case WarnLevel:
-		return yellow
+		return theme.Yellow
 	case ErrorLevel:
-		return red
+		return theme.Red
 	case FatalLevel:
-		return maroon
+		return theme.Maroon
 	default:
-		return text
+		return theme.Text
 	}
 }
 
@@ -168,12 +153,12 @@ func (l *ConsoleLogger) log(level Level, msg string, args ...interface{}) {
 
 	prefix := fmt.Sprintf(
 		"%s[%s]%s %s[%s]%s",
-		surface1, ts, reset,
-		levelColor(level), level, reset,
+		theme.Surface1, ts, theme.Reset,
+		levelColor(level), level, theme.Reset,
 	)
 
 	printWithProgressRedraw(func() {
-		fmt.Printf("%s %s%s%s\n", prefix, text, msg, reset)
+		fmt.Printf("%s %s%s%s\n", prefix, theme.Text, msg, theme.Reset)
 	})
 }
 
@@ -184,19 +169,19 @@ func (l *ConsoleLogger) logWithFields(level Level, msg string, fields map[string
 	for k, v := range fields {
 		fieldsStr += fmt.Sprintf(
 			" %s%s%s=%s%v%s",
-			lavender, k, reset,
-			subtext1, v, reset,
+			theme.Lavender, k, theme.Reset,
+			theme.Subtext1, v, theme.Reset,
 		)
 	}
 
 	prefix := fmt.Sprintf(
 		"%s[%s]%s %s[%s]%s",
-		surface1, ts, reset,
-		levelColor(level), level, reset,
+		theme.Surface1, ts, theme.Reset,
+		levelColor(level), level, theme.Reset,
 	)
 
 	printWithProgressRedraw(func() {
-		fmt.Printf("%s %s%s%s\n", prefix, text, msg, fieldsStr)
+		fmt.Printf("%s %s%s%s\n", prefix, theme.Text, msg, fieldsStr)
 	})
 }
 

@@ -97,7 +97,7 @@ func (c *HTTPClient) getWithOptions(url string, headers map[string]string) ([]by
 		resp, err := grequests.Get(url, ro)
 		if err != nil {
 			lastErr = err
-			c.logger.Warn("HTTP 请求失败 (尝试 %d/%d): %v", attempt, c.maxRetries, err)
+			// c.logger.Warn("HTTP 请求失败 (尝试 %d/%d): %v", attempt, c.maxRetries, err)
 
 			// 如果是网络错误，可能需要重试
 			if isNetworkError(err) && attempt < c.maxRetries {
